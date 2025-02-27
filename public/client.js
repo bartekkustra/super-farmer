@@ -4,6 +4,8 @@ const ctx = canvas.getContext('2d');
 const messagesDiv = document.getElementById('messages');
 const joinSection = document.getElementById('joinSection');
 const controlsDiv = document.getElementById('controls');
+const startGameBtn = document.getElementById('startGameBtn');
+const gameControls = document.getElementById('gameControls');
 
 // Increase canvas size
 canvas.width = 1200;
@@ -36,46 +38,74 @@ joinSection.innerHTML = `
   <button id="createGameBtn">Create New Game</button>
 `;
 
-// Handle create game button
-document.getElementById('createGameBtn').addEventListener('click', () => {
-  const roomCode = generateRoomCode();
-  document.getElementById('roomInput').value = roomCode;
-});
-
-// Modify join game button handler
-document.getElementById('joinGameBtn').addEventListener('click', () => {
-  const name = document.getElementById('nameInput').value.trim();
-  let roomCode = document.getElementById('roomInput').value.trim();
-  
-  if (!name) {
-    alert('Please enter a name.');
-    return;
-  }
-  
-  if (!roomCode) {
-    roomCode = generateRoomCode();
-    document.getElementById('roomInput').value = roomCode;
-  }
-  
-  socket.emit('joinGame', { gameId: roomCode, name });
-  joined = true;
-  joinSection.style.display = 'none';
-  controlsDiv.style.display = 'block';
-  
-  // Update URL with room code
-  window.history.pushState({}, '', `?room=${roomCode}`);
-});
-
-// Check URL for room code on page load
+// Wait for DOM to be fully loaded
 window.addEventListener('load', () => {
+  // Check URL for room code
   const urlParams = new URLSearchParams(window.location.search);
   const roomCode = urlParams.get('room');
   if (roomCode) {
     document.getElementById('roomInput').value = roomCode;
   }
+
+  // Set up all event listeners
+  document.getElementById('createGameBtn').addEventListener('click', () => {
+    const roomCode = generateRoomCode();
+    document.getElementById('roomInput').value = roomCode;
+  });
+
+  document.getElementById('joinGameBtn').addEventListener('click', () => {
+    const name = document.getElementById('nameInput').value.trim();
+    let roomCode = document.getElementById('roomInput').value.trim();
+    
+    if (!name) {
+      alert('Please enter a name.');
+      return;
+    }
+    
+    if (!roomCode) {
+      roomCode = generateRoomCode();
+      document.getElementById('roomInput').value = roomCode;
+    }
+    
+    socket.emit('joinGame', { gameId: roomCode, name });
+    joined = true;
+    joinSection.style.display = 'none';
+    controlsDiv.style.display = 'block';
+    
+    window.history.pushState({}, '', `?room=${roomCode}`);
+  });
+
+  document.getElementById('startGameBtn').addEventListener('click', () => {
+    const roomCode = document.getElementById('roomInput').value;
+    socket.emit('startGame', { gameId: roomCode });
+  });
+
+  document.getElementById('exchangeBtn').addEventListener('click', () => {
+    const roomCode = document.getElementById('roomInput').value;
+    const exchangeType = document.getElementById('exchangeSelect').value;
+    socket.emit('exchange', { gameId: roomCode, exchangeType });
+  });
+
+  document.getElementById('finishExchangeBtn').addEventListener('click', () => {
+    const roomCode = document.getElementById('roomInput').value;
+    socket.emit('finishExchange', { gameId: roomCode });
+  });
+
+  document.getElementById('rollDiceBtn').addEventListener('click', () => {
+    const roomCode = document.getElementById('roomInput').value;
+    socket.emit('rollDice', { gameId: roomCode });
+  });
 });
 
+// Socket event handlers
 socket.on('gameState', (state) => {
+  console.log('Received game state:', {
+    started: state.started,
+    phase: state.phase,
+    players: Object.keys(state.players).length,
+    fullState: state
+  });
+  
   gameState = state;
   
   // Show/hide appropriate controls based on game state
@@ -83,9 +113,11 @@ socket.on('gameState', (state) => {
   const gameControls = document.getElementById('gameControls');
   
   if (gameState.started) {
+    console.log('Game started, showing game controls');
     startGameBtn.style.display = 'none';
     gameControls.style.display = 'block';
   } else {
+    console.log('Game not started, showing start button');
     startGameBtn.style.display = 'block';
     gameControls.style.display = 'none';
   }
@@ -98,73 +130,6 @@ socket.on('message', (msg) => {
   p.textContent = msg;
   messagesDiv.appendChild(p);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
-});
-
-// Exchange button
-document.getElementById('exchangeBtn').addEventListener('click', () => {
-  socket.emit('exchange', {
-    gameId: 'game1',
-    exchangeType: document.getElementById('exchangeSelect').value
-  });
-});
-
-// Finish exchange phase
-document.getElementById('finishExchangeBtn').addEventListener('click', () => {
-  socket.emit('finishExchange', { gameId: 'game1' });
-});
-
-// Roll dice button
-document.getElementById('rollDiceBtn').addEventListener('click', () => {
-  socket.emit('rollDice', { gameId: 'game1' });
-});
-
-// Add start game button to the controls
-controlsDiv.innerHTML = `
-  <button id="startGameBtn">Start Game</button>
-  <div id="gameControls" style="display: none;">
-    <div class="section-title">🔄 Exchange Animals</div>
-    <select id="exchangeSelect">
-      <optgroup label="🐰 Rabbits ↔ Sheep 🐑">
-        <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
-        <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
-      </optgroup>
-      
-      <optgroup label="🐑 Sheep ↔ Pig 🐷">
-        <option value="sheepToPig">2 Sheep → 1 Pig</option>
-        <option value="pigToSheep">1 Pig → 2 Sheep</option>
-      </optgroup>
-      
-      <optgroup label="🐷 Pig ↔ Cow 🐮">
-        <option value="pigToCow">3 Pigs → 1 Cow</option>
-        <option value="cowToPig">1 Cow → 3 Pigs</option>
-      </optgroup>
-      
-      <optgroup label="🐮 Cow ↔ Horse 🐎">
-        <option value="cowToHorse">2 Cows → 1 Horse</option>
-        <option value="horseToCow">1 Horse → 2 Cows</option>
-      </optgroup>
-      
-      <optgroup label="🐕 Guard Dogs">
-        <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
-        <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
-        <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
-        <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
-      </optgroup>
-    </select>
-    <button id="exchangeBtn">Make Exchange</button>
-    <button id="finishExchangeBtn">End Exchange Phase</button>
-    
-    <div class="dice-section">
-      <div class="section-title">🎲 Roll Dice</div>
-      <button id="rollDiceBtn">Roll Dice</button>
-    </div>
-  </div>
-`;
-
-// Add event listener for start game button
-document.getElementById('startGameBtn').addEventListener('click', () => {
-  const roomCode = document.getElementById('roomInput').value;
-  socket.emit('startGame', { gameId: roomCode });
 });
 
 function drawBankBox(x, y, animal, count, boxWidth = 150, boxHeight = 150) {

@@ -143,21 +143,36 @@ io.on('connection', (socket) => {
     const { gameId } = data;
     const game = games[gameId];
     
-    if (!game) return;
+    console.log('Start game requested for room:', gameId);
+    
+    if (!game) {
+      console.log('Game not found:', gameId);
+      return;
+    }
     if (game.started) {
+      console.log('Game already started');
       socket.emit('message', 'Game already started.');
       return;
     }
     
     // Need at least 2 players to start
     if (game.turnOrder.length < 2) {
+      console.log('Not enough players to start');
       socket.emit('message', 'Need at least 2 players to start the game.');
       return;
     }
     
+    console.log('Starting game with players:', game.turnOrder.length);
+    
     // Start the game
     game.started = true;
     game.phase = 'exchange';
+    
+    console.log('Game state after starting:', {
+      started: game.started,
+      phase: game.phase,
+      players: Object.keys(game.players).length
+    });
     
     // Give each player their starting rabbit
     game.turnOrder.forEach(playerId => {
@@ -165,8 +180,16 @@ io.on('connection', (socket) => {
       game.bank.rabbit--;
     });
     
+    const clientState = gameStateForClients(game);
+    console.log('Sending client state:', {
+      started: clientState.started,
+      phase: clientState.phase,
+      players: Object.keys(clientState.players).length
+    });
+    
+    // Make sure to emit to all players in the room
     io.to(gameId).emit('message', 'Game has started! Each player received 1 rabbit.');
-    io.to(gameId).emit('gameState', gameStateForClients(game));
+    io.to(gameId).emit('gameState', clientState);
   });
   
   // Handle an exchange request.
@@ -445,6 +468,7 @@ function gameStateForClients(game) {
     turnOrder: game.turnOrder,
     currentTurn: game.turnOrder[game.currentTurnIndex],
     phase: game.phase,
+    started: game.started,
     lastDice: game.lastDice || null
   };
 }
