@@ -165,36 +165,20 @@ io.on('connection', (socket) => {
     const { gameId } = data;
     const game = games[gameId];
     
-    console.log('Start game requested for room:', gameId);
-    
-    if (!game) {
-      console.log('Game not found:', gameId);
-      return;
-    }
+    if (!game) return;
     if (game.started) {
-      console.log('Game already started');
       socket.emit('message', 'Game already started.');
       return;
     }
     
     // Need at least 2 players to start
     if (game.turnOrder.length < 2) {
-      console.log('Not enough players to start');
       socket.emit('message', 'Need at least 2 players to start the game.');
       return;
     }
     
-    console.log('Starting game with players:', game.turnOrder.length);
-    
     // Start the game
     game.started = true;
-    game.phase = 'exchange';
-    
-    console.log('Game state after starting:', {
-      started: game.started,
-      phase: game.phase,
-      players: Object.keys(game.players).length
-    });
     
     // Give each player their starting rabbit
     game.turnOrder.forEach(playerId => {
@@ -202,16 +186,21 @@ io.on('connection', (socket) => {
       game.bank.rabbit--;
     });
     
-    const clientState = gameStateForClients(game);
-    console.log('Sending client state:', {
-      started: clientState.started,
-      phase: clientState.phase,
-      players: Object.keys(clientState.players).length
-    });
+    // Check if first player can make any exchanges
+    const firstPlayer = game.players[game.turnOrder[0]];
+    if (!canMakeAnyExchange(firstPlayer)) {
+      game.phase = 'roll';
+      io.to(gameId).emit('message', 
+        `Game has started! Each player received 1 rabbit.\n${firstPlayer.name}'s turn (Exchange phase skipped - no possible exchanges).`
+      );
+    } else {
+      game.phase = 'exchange';
+      io.to(gameId).emit('message', 
+        `Game has started! Each player received 1 rabbit.\n${firstPlayer.name}'s turn (Exchange phase).`
+      );
+    }
     
-    // Make sure to emit to all players in the room
-    io.to(gameId).emit('message', 'Game has started! Each player received 1 rabbit.');
-    io.to(gameId).emit('gameState', clientState);
+    io.to(gameId).emit('gameState', gameStateForClients(game));
     
     // After game starts, broadcast updated room list
     io.emit('roomList', getAvailableRooms());
@@ -314,6 +303,7 @@ io.on('connection', (socket) => {
     const rolledFox = (redResult === 'fox');
     const rolledWolf = (blueResult === 'wolf');
     
+    // Handle predator attacks first
     if (rolledWolf && rolledFox) {
       // Handle wolf attack first
       if (player.animals.bigDog > 0) {
@@ -385,6 +375,40 @@ io.on('connection', (socket) => {
         console.log('After wolf attack - Animals:', player.animals);
         
         turnSummary.push(`Wolf attacked! You lost all cows, sheep, and pigs.`);
+      }
+    }
+    
+    // After handling predator attacks, calculate animals gained
+    if (!rolledFox && !rolledWolf) {
+      // Count animals on dice
+      const diceAnimals = {};
+      if (redResult !== 'fox') diceAnimals[redResult] = (diceAnimals[redResult] || 0) + 1;
+      if (blueResult !== 'wolf') diceAnimals[blueResult] = (diceAnimals[blueResult] || 0) + 1;
+      
+      // For each animal type shown on dice
+      for (const animal in diceAnimals) {
+        // Calculate total count (animals on dice + animals player has)
+        const totalCount = diceAnimals[animal] + (player.animals[animal] || 0);
+        // Calculate number of pairs (floor division by 2)
+        const pairs = Math.floor(totalCount / 2);
+        
+        // Give animals from bank based on number of pairs
+        if (pairs > 0) {
+          const availableInBank = game.bank[animal];
+          const animalsToGive = Math.min(pairs, availableInBank);
+          
+          if (animalsToGive > 0) {
+            player.animals[animal] += animalsToGive;
+            game.bank[animal] -= animalsToGive;
+            turnSummary.push(`Received ${animalsToGive} ${animal}${animalsToGive > 1 ? 's' : ''} from the bank (${pairs} pairs total).`);
+          } else {
+            turnSummary.push(`Had ${pairs} pairs of ${animal} but bank has none left.`);
+          }
+        }
+      }
+      
+      if (Object.keys(diceAnimals).length === 0) {
+        turnSummary.push('No animals gained this turn.');
       }
     }
     
