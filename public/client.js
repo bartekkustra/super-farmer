@@ -25,18 +25,131 @@ const animalEmojis = {
 let gameState = null;
 let joined = false;
 
-// Add room input or generate random room code
-function generateRoomCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+// Create room list container
+const roomListDiv = document.createElement('div');
+roomListDiv.id = 'roomList';
+roomListDiv.className = 'room-list';
 
-// Modify the join section in the HTML
-joinSection.innerHTML = `
+// Create form elements container
+const formContainer = document.createElement('div');
+formContainer.innerHTML = `
   <input type="text" id="nameInput" placeholder="Enter your farmer name" />
   <input type="text" id="roomInput" placeholder="Enter room code (optional)" />
   <button id="joinGameBtn">Start Farming</button>
   <button id="createGameBtn">Create New Game</button>
 `;
+
+// Clear and rebuild join section
+joinSection.innerHTML = '';
+joinSection.appendChild(roomListDiv);
+joinSection.appendChild(formContainer);
+
+// Add styles to the head
+const additionalStyles = `
+  .status-in-progress {
+    color: #d35400;
+    font-style: italic;
+  }
+  
+  .status-waiting {
+    color: #27ae60;
+    font-style: italic;
+  }
+`;
+
+const style = document.createElement('style');
+style.textContent = `
+  .room-list {
+    margin-bottom: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .room-item {
+    background: white;
+    border: 2px solid #8b4513;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .room-info {
+    flex: 1;
+  }
+  
+  .join-room-btn {
+    background: #8b4513;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+    width: auto;
+  }
+  
+  .join-room-btn:hover {
+    background: #a0522d;
+  }
+  
+  ${additionalStyles}
+`;
+document.head.appendChild(style);
+
+function updateRoomList(rooms) {
+  roomListDiv.innerHTML = '<h3>Available Rooms:</h3>';
+  if (Object.keys(rooms).length === 0) {
+    roomListDiv.innerHTML += '<p>No active rooms. Create a new one!</p>';
+    return;
+  }
+  
+  for (const [roomId, room] of Object.entries(rooms)) {
+    const roomElement = document.createElement('div');
+    roomElement.className = 'room-item';
+    
+    const playerList = Object.values(room.players)
+      .map(p => p.name)
+      .join(', ');
+    
+    const statusText = room.started ? 
+      `In Progress (${room.phase} phase, ${room.currentTurn}'s turn)` : 
+      'Waiting for players';
+    
+    roomElement.innerHTML = `
+      <div class="room-info">
+        <strong>Room: ${roomId}</strong> (${Object.keys(room.players).length} players)
+        <br>
+        <small>Players: ${playerList}</small>
+        <br>
+        <small class="${room.started ? 'status-in-progress' : 'status-waiting'}">${statusText}</small>
+      </div>
+      ${!room.started ? `<button class="join-room-btn" data-room="${roomId}">Join Room</button>` : ''}
+    `;
+    
+    roomListDiv.appendChild(roomElement);
+  }
+  
+  // Add event listeners to join buttons
+  document.querySelectorAll('.join-room-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('roomInput').value = btn.dataset.room;
+    });
+  });
+}
+
+// Socket event handlers
+socket.on('roomList', (rooms) => {
+  console.log('Received room list:', rooms); // Debug log
+  updateRoomList(rooms);
+});
+
+// Add room input or generate random room code
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 // Wait for DOM to be fully loaded
 window.addEventListener('load', () => {

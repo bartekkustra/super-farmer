@@ -85,8 +85,27 @@ function rollDie(faces) {
   return faces[index];
 }
 
+// Modify getAvailableRooms to include all rooms with their state
+function getAvailableRooms() {
+  const availableRooms = {};
+  for (const [roomId, game] of Object.entries(games)) {
+    availableRooms[roomId] = {
+      players: game.players,
+      started: game.started,
+      phase: game.phase,
+      currentTurn: game.players[game.turnOrder[game.currentTurnIndex]]?.name
+    };
+  }
+  return availableRooms;
+}
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
+  
+  // Send initial room list to new connections
+  const rooms = getAvailableRooms();
+  console.log('Sending initial room list:', rooms); // Debug log
+  socket.emit('roomList', rooms);
   
   socket.on('joinGame', (data) => {
     const { gameId, name } = data;
@@ -136,6 +155,9 @@ io.on('connection', (socket) => {
     
     io.to(gameId).emit('message', `${name} joined the game.`);
     io.to(gameId).emit('gameState', gameStateForClients(currentGame));
+    
+    // After updating game state, broadcast new room list to all clients
+    io.emit('roomList', getAvailableRooms());
   });
 
   // New event handler for starting the game
@@ -190,6 +212,9 @@ io.on('connection', (socket) => {
     // Make sure to emit to all players in the room
     io.to(gameId).emit('message', 'Game has started! Each player received 1 rabbit.');
     io.to(gameId).emit('gameState', clientState);
+    
+    // After game starts, broadcast updated room list
+    io.emit('roomList', getAvailableRooms());
   });
   
   // Handle an exchange request.
@@ -244,6 +269,9 @@ io.on('connection', (socket) => {
     player.exchangesUsed++;
     io.to(gameId).emit('gameState', gameStateForClients(game));
     socket.emit('message', `Exchange completed: ${exchangeType}.`);
+    
+    // After updating game state, broadcast new room list to all clients
+    io.emit('roomList', getAvailableRooms());
   });
   
   // End the exchange phase and move to roll phase.
@@ -258,6 +286,9 @@ io.on('connection', (socket) => {
     game.phase = 'roll';
     io.to(gameId).emit('gameState', gameStateForClients(game));
     socket.emit('message', 'Exchange phase finished. Please roll the dice.');
+    
+    // After updating game state, broadcast new room list to all clients
+    io.emit('roomList', getAvailableRooms());
   });
   
   // Handle dice roll.
@@ -380,6 +411,9 @@ io.on('connection', (socket) => {
     }
     
     io.to(gameId).emit('gameState', gameStateForClients(game));
+    
+    // After updating game state, broadcast new room list to all clients
+    io.emit('roomList', getAvailableRooms());
   });
   
   socket.on('disconnect', () => {
@@ -404,6 +438,9 @@ io.on('connection', (socket) => {
         }
       }
     }
+    
+    // After player disconnects, broadcast updated room list
+    io.emit('roomList', getAvailableRooms());
   });
 });
 
@@ -431,6 +468,9 @@ function nextTurn(gameId) {
   }
   
   io.to(gameId).emit('gameState', gameStateForClients(game));
+  
+  // After updating game state, broadcast new room list to all clients
+  io.emit('roomList', getAvailableRooms());
 }
 
 // Prepare a version of game state to send to clients.
