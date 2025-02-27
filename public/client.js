@@ -274,10 +274,10 @@ function drawBankBox(x, y, animal, count, boxWidth = 150, boxHeight = 150) {
 }
 
 function drawPlayerBox(x, y, player, isCurrentTurn, boxWidth = 200, boxHeight = 250) {
-  // Draw player name above the box
+  // Draw player name and score above the box
   ctx.fillStyle = '#5c3c10';
   ctx.font = 'bold 24px Comic Sans MS';
-  const nameText = player.name + (isCurrentTurn ? ' 👈' : '');
+  const nameText = `${player.name} (Score: ${player.score})${isCurrentTurn ? ' 👈' : ''}`;
   ctx.fillText(nameText, x, y);
   
   // Adjust y position to add space between name and box
@@ -385,6 +385,15 @@ function renderGameState() {
       20,
       statusY + 30
     );
+  }
+  
+  // Add game over controls when phase is 'gameOver'
+  if (gameState.phase === 'gameOver') {
+    const gameOverDiv = document.getElementById('gameOverControls') || createGameOverControls();
+    gameOverDiv.style.display = 'block';
+  } else {
+    const gameOverDiv = document.getElementById('gameOverControls');
+    if (gameOverDiv) gameOverDiv.style.display = 'none';
   }
 }
 
@@ -511,3 +520,30 @@ const exchangeRules = {
 
 // Add near the top with other constants
 const MAX_NUMBER_OF_EXCHANGES = 1;
+
+// Create game over controls
+function createGameOverControls() {
+  const controlsDiv = document.getElementById('controls');
+  const gameOverDiv = document.createElement('div');
+  gameOverDiv.id = 'gameOverControls';
+  
+  const drawBtn = document.createElement('button');
+  drawBtn.textContent = 'Declare Draw (1 point each)';
+  drawBtn.onclick = () => {
+    const roomCode = document.getElementById('roomInput').value;
+    socket.emit('declareDraw', { gameId: roomCode });
+  };
+  
+  const nextRoundBtn = document.createElement('button');
+  nextRoundBtn.textContent = 'Start Next Round';
+  nextRoundBtn.onclick = () => {
+    const roomCode = document.getElementById('roomInput').value;
+    socket.emit('startNextRound', { gameId: roomCode });
+  };
+  
+  gameOverDiv.appendChild(drawBtn);
+  gameOverDiv.appendChild(nextRoundBtn);
+  controlsDiv.appendChild(gameOverDiv);
+  
+  return gameOverDiv;
+}

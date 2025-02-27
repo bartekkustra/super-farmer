@@ -24,12 +24,13 @@ function createNewGame() {
       smallDog: 4,
       bigDog: 2
     },
-    players: {},      // key: socket.id → { name, animals, exchangesUsed }
+    players: {},      // key: socket.id → { name, animals, exchangesUsed, score }
     turnOrder: [],    // array of socket ids in join order
     phase: 'waiting', // phases: 'waiting', 'exchange', 'roll', 'endTurn', 'gameOver'
     started: false,   // flag to track if game has started
     currentTurnIndex: 0,
-    lastDice: null
+    lastDice: null,
+    roundNumber: 1    // Add round tracking
   };
 }
 
@@ -148,7 +149,8 @@ io.on('connection', (socket) => {
         smallDog: 0,
         bigDog: 0
       },
-      exchangesUsed: 0
+      exchangesUsed: 0,
+      score: 0         // Add score tracking
     };
     
     if (!currentGame.turnOrder.includes(socket.id)) {
@@ -421,7 +423,8 @@ io.on('connection', (socket) => {
     let hasWon = winAnimals.every(animal => player.animals[animal] > 0);
     
     if (hasWon) {
-      turnSummary.push(`${player.name} has at least one of each main animal. ${player.name} wins!`);
+      player.score += 3; // Winner gets 3 points
+      turnSummary.push(`${player.name} has won the round and earned 3 points! (Total score: ${player.score})`);
       game.phase = 'gameOver';
     } else {
       turnSummary.push(`${player.name}'s turn is over.`);
@@ -468,6 +471,31 @@ io.on('connection', (socket) => {
     // After player disconnects, broadcast updated room list
     io.emit('roomList', getAvailableRooms());
   });
+
+  // Add new socket event for declaring a draw
+  socket.on('declareDraw', (data) => {
+    const { gameId } = data;
+    const game = games[gameId];
+    
+    if (!game || !game.started || game.phase !== 'gameOver') return;
+    
+    // Give everyone a point
+    Object.values(game.players).forEach(player => {
+      player.score += 1;
+    });
+    
+    // Start new round
+    startNewRound(gameId);
+    
+    io.to(gameId).emit('message', `Round ${game.roundNumber - 1} ended in a draw! Everyone gets 1 point.`);
+    io.to(gameId).emit('gameState', gameStateForClients(game));
+  });
+
+  // Add new socket event for starting next round
+  socket.on('startNextRound', (data) => {
+    const { gameId } = data;
+    startNewRound(gameId);
+  });
 });
 
 // Pass turn to the next player.
@@ -499,6 +527,44 @@ function nextTurn(gameId) {
   io.emit('roomList', getAvailableRooms());
 }
 
+// Helper function to start a new round
+function startNewRound(gameId) {
+  const game = games[gameId];
+  if (!game) return;
+  
+  game.roundNumber++;
+  game.bank = {
+    rabbit: 60,
+    sheep: 24,
+    pig: 20,
+    cow: 12,
+    horse: 6,
+    smallDog: 4,
+    bigDog: 2
+  };
+  
+  // Reset all players' animals but keep their scores
+  Object.values(game.players).forEach(player => {
+    player.animals = {
+      rabbit: 1,  // Start with 1 rabbit
+      sheep: 0,
+      pig: 0,
+      cow: 0,
+      horse: 0,
+      smallDog: 0,
+      bigDog: 0
+    };
+    player.exchangesUsed = 0;
+  });
+  
+  game.bank.rabbit -= Object.keys(game.players).length; // Remove initial rabbits from bank
+  game.phase = 'exchange';
+  game.started = true;
+  
+  io.to(gameId).emit('message', `Round ${game.roundNumber} started! Everyone received 1 rabbit.`);
+  io.to(gameId).emit('gameState', gameStateForClients(game));
+}
+
 // Prepare a version of game state to send to clients.
 function gameStateForClients(game) {
   return {
@@ -508,7 +574,8 @@ function gameStateForClients(game) {
     currentTurn: game.turnOrder[game.currentTurnIndex],
     phase: game.phase,
     started: game.started,
-    lastDice: game.lastDice || null
+    lastDice: game.lastDice || null,
+    roundNumber: game.roundNumber
   };
 }
 
