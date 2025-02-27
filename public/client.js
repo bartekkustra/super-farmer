@@ -220,6 +220,7 @@ socket.on('gameState', (state) => {
   });
   
   gameState = state;
+  updateControlButtons();
   
   // Show/hide appropriate controls based on game state
   const startGameBtn = document.getElementById('startGameBtn');
@@ -379,5 +380,42 @@ function renderGameState() {
       20,
       statusY + 30
     );
+  }
+}
+
+function updateControlButtons() {
+  if (!gameState) return;
+
+  const isMyTurn = socket.id === gameState.currentTurn;
+  const exchangeBtn = document.getElementById('exchangeBtn');
+  const finishExchangeBtn = document.getElementById('finishExchangeBtn');
+  const rollDiceBtn = document.getElementById('rollDiceBtn');
+  
+  // Disable all buttons if it's not player's turn
+  if (!isMyTurn) {
+    exchangeBtn.disabled = true;
+    finishExchangeBtn.disabled = true;
+    rollDiceBtn.disabled = true;
+    return;
+  }
+  
+  // Enable/disable buttons based on game phase
+  switch (gameState.phase) {
+    case 'exchange':
+      exchangeBtn.disabled = false;
+      finishExchangeBtn.disabled = false;
+      rollDiceBtn.disabled = true;
+      break;
+    case 'roll':
+      exchangeBtn.disabled = true;
+      finishExchangeBtn.disabled = true;
+      rollDiceBtn.disabled = false;
+      break;
+    case 'endTurn':
+    case 'gameOver':
+      exchangeBtn.disabled = true;
+      finishExchangeBtn.disabled = true;
+      rollDiceBtn.disabled = true;
+      break;
   }
 }
