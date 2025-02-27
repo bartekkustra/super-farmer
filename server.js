@@ -9,6 +9,8 @@ app.use(express.static('public'));
 // Global game storage (for simplicity, one game room "game1")
 const games = {};
 
+const MAX_NUMBER_OF_EXCHANGES = 1;
+
 function createNewGame() {
   return {
     bank: {
@@ -133,7 +135,7 @@ io.on('connection', (socket) => {
       socket.emit('message', 'Not your turn or wrong phase for exchange.');
       return;
     }
-    if (game.players[socket.id].exchangesUsed >= 2) {
+    if (game.players[socket.id].exchangesUsed >= MAX_NUMBER_OF_EXCHANGES) {
       socket.emit('message', 'Maximum exchanges used this turn.');
       return;
     }
@@ -147,6 +149,11 @@ io.on('connection', (socket) => {
     for (let animal in rule.cost) {
       if (player.animals[animal] < rule.cost[animal]) {
         socket.emit('message', 'Not enough ' + animal + ' for this exchange.');
+        return;
+      }
+      // Check if exchange would leave player with less than 1 rabbit
+      if (animal === 'rabbit' && player.animals.rabbit - rule.cost[animal] < 1) {
+        socket.emit('message', 'Must keep at least 1 rabbit after exchange.');
         return;
       }
     }
@@ -214,12 +221,20 @@ io.on('connection', (socket) => {
       if (rolledWolf && rolledFox) {
         if (player.animals.bigDog > 0) {
           player.animals.bigDog = Math.max(player.animals.bigDog - 1, 0);
+          game.bank.bigDog++; // Return big dog to bank
           turnSummary.push(`Wolf & Fox attacked! Big Dog protected you but was lost.`);
         } else {
-          // Lose everything except horses and rabbits.
-          turnSummary.push(`Wolf & Fox attacked! You lost all animals except your horses and rabits.`);
+          // Return all animals except horses to bank
+          game.bank.rabbit += player.animals.rabbit;
+          game.bank.sheep += player.animals.sheep;
+          game.bank.pig += player.animals.pig;
+          game.bank.cow += player.animals.cow;
+          game.bank.smallDog += player.animals.smallDog;
+          game.bank.bigDog += player.animals.bigDog;
+          
+          turnSummary.push(`Wolf & Fox attacked! You lost all animals except your horses.`);
           player.animals = {
-            rabbit: player.animals.rabbit,
+            rabbit: 0,
             sheep: 0,
             pig: 0,
             cow: 0,
@@ -231,9 +246,12 @@ io.on('connection', (socket) => {
       } else if (rolledFox) {
         if (player.animals.smallDog > 0) {
           player.animals.smallDog--;
+          game.bank.smallDog++; // Return small dog to bank
           turnSummary.push(`Fox attacked! Small Dog protected your rabbits but was lost.`);
         } else {
           if (player.animals.rabbit > 1) {
+            const rabbitsLost = player.animals.rabbit - 1;
+            game.bank.rabbit += rabbitsLost; // Return lost rabbits to bank
             turnSummary.push(`Fox attacked! You lost all rabbits except one.`);
             player.animals.rabbit = 1;
           } else {
@@ -243,30 +261,29 @@ io.on('connection', (socket) => {
       } else if (rolledWolf) {
         if (player.animals.bigDog > 0) {
           player.animals.bigDog--;
+          game.bank.bigDog++; // Return big dog to bank
           turnSummary.push(`Wolf attacked! Big Dog protected you but was lost.`);
         } else {
-          turnSummary.push(`Wolf attacked! You lost all animals except your horse and small dog.`);
-          // Reset animals but keep horse and small dog
-          const savedHorse = player.animals.horse;
-          const savedSmallDog = player.animals.smallDog;
+          // Return all animals except horses to bank
+          game.bank.rabbit += player.animals.rabbit;
+          game.bank.sheep += player.animals.sheep;
+          game.bank.pig += player.animals.pig;
+          game.bank.cow += player.animals.cow;
+          game.bank.smallDog += player.animals.smallDog;
+          game.bank.bigDog += player.animals.bigDog;
+          
+          turnSummary.push(`Wolf attacked! You lost all animals except your horses.`);
           player.animals = {
-            rabbit: 0,
+            rabbit: 1, // Give 1 starter rabbit
             sheep: 0,
             pig: 0,
             cow: 0,
-            horse: savedHorse,
-            smallDog: savedSmallDog,
+            horse: player.animals.horse,
+            smallDog: 0,
             bigDog: 0
           };
-          
-          // Give 1 rabbit from bank (like initial setup)
-          if (game.bank.rabbit > 0) {
-            game.bank.rabbit--;
-            player.animals.rabbit = 1;
-            turnSummary.push(`Received 1 starting rabbit from the bank.`);
-          } else {
-            turnSummary.push(`Bank has no rabbits left to give!`);
-          }
+          game.bank.rabbit--; // Take the starter rabbit from bank
+          turnSummary.push(`You received 1 starter rabbit from the bank.`);
         }
       }
     } else {
