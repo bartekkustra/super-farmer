@@ -23,21 +23,73 @@ const animalEmojis = {
 let gameState = null;
 let joined = false;
 
-// Handle join game button
+// Add room input or generate random room code
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+// Modify the join section in the HTML
+joinSection.innerHTML = `
+  <input type="text" id="nameInput" placeholder="Enter your farmer name" />
+  <input type="text" id="roomInput" placeholder="Enter room code (optional)" />
+  <button id="joinGameBtn">Start Farming</button>
+  <button id="createGameBtn">Create New Game</button>
+`;
+
+// Handle create game button
+document.getElementById('createGameBtn').addEventListener('click', () => {
+  const roomCode = generateRoomCode();
+  document.getElementById('roomInput').value = roomCode;
+});
+
+// Modify join game button handler
 document.getElementById('joinGameBtn').addEventListener('click', () => {
   const name = document.getElementById('nameInput').value.trim();
+  let roomCode = document.getElementById('roomInput').value.trim();
+  
   if (!name) {
     alert('Please enter a name.');
     return;
   }
-  socket.emit('joinGame', { gameId: 'game1', name });
+  
+  if (!roomCode) {
+    roomCode = generateRoomCode();
+    document.getElementById('roomInput').value = roomCode;
+  }
+  
+  socket.emit('joinGame', { gameId: roomCode, name });
   joined = true;
   joinSection.style.display = 'none';
   controlsDiv.style.display = 'block';
+  
+  // Update URL with room code
+  window.history.pushState({}, '', `?room=${roomCode}`);
+});
+
+// Check URL for room code on page load
+window.addEventListener('load', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomCode = urlParams.get('room');
+  if (roomCode) {
+    document.getElementById('roomInput').value = roomCode;
+  }
 });
 
 socket.on('gameState', (state) => {
   gameState = state;
+  
+  // Show/hide appropriate controls based on game state
+  const startGameBtn = document.getElementById('startGameBtn');
+  const gameControls = document.getElementById('gameControls');
+  
+  if (gameState.started) {
+    startGameBtn.style.display = 'none';
+    gameControls.style.display = 'block';
+  } else {
+    startGameBtn.style.display = 'block';
+    gameControls.style.display = 'none';
+  }
+  
   renderGameState();
 });
 
@@ -64,6 +116,55 @@ document.getElementById('finishExchangeBtn').addEventListener('click', () => {
 // Roll dice button
 document.getElementById('rollDiceBtn').addEventListener('click', () => {
   socket.emit('rollDice', { gameId: 'game1' });
+});
+
+// Add start game button to the controls
+controlsDiv.innerHTML = `
+  <button id="startGameBtn">Start Game</button>
+  <div id="gameControls" style="display: none;">
+    <div class="section-title">🔄 Exchange Animals</div>
+    <select id="exchangeSelect">
+      <optgroup label="🐰 Rabbits ↔ Sheep 🐑">
+        <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
+        <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
+      </optgroup>
+      
+      <optgroup label="🐑 Sheep ↔ Pig 🐷">
+        <option value="sheepToPig">2 Sheep → 1 Pig</option>
+        <option value="pigToSheep">1 Pig → 2 Sheep</option>
+      </optgroup>
+      
+      <optgroup label="🐷 Pig ↔ Cow 🐮">
+        <option value="pigToCow">3 Pigs → 1 Cow</option>
+        <option value="cowToPig">1 Cow → 3 Pigs</option>
+      </optgroup>
+      
+      <optgroup label="🐮 Cow ↔ Horse 🐎">
+        <option value="cowToHorse">2 Cows → 1 Horse</option>
+        <option value="horseToCow">1 Horse → 2 Cows</option>
+      </optgroup>
+      
+      <optgroup label="🐕 Guard Dogs">
+        <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
+        <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
+        <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
+        <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
+      </optgroup>
+    </select>
+    <button id="exchangeBtn">Make Exchange</button>
+    <button id="finishExchangeBtn">End Exchange Phase</button>
+    
+    <div class="dice-section">
+      <div class="section-title">🎲 Roll Dice</div>
+      <button id="rollDiceBtn">Roll Dice</button>
+    </div>
+  </div>
+`;
+
+// Add event listener for start game button
+document.getElementById('startGameBtn').addEventListener('click', () => {
+  const roomCode = document.getElementById('roomInput').value;
+  socket.emit('startGame', { gameId: roomCode });
 });
 
 function drawBankBox(x, y, animal, count, boxWidth = 150, boxHeight = 150) {
@@ -133,9 +234,9 @@ function drawPlayerBox(x, y, player, isCurrentTurn, boxWidth = 200, boxHeight = 
 }
 
 function renderGameState() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
   if (!gameState) return;
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   // Draw background
   ctx.fillStyle = '#fff5e6';

@@ -6,7 +6,7 @@ const io = require('socket.io')(http);
 // Serve static files from "public"
 app.use(express.static('public'));
 
-// Global game storage (for simplicity, one game room "game1")
+// Global game storage (now using gameId as key)
 const games = {};
 
 const MAX_NUMBER_OF_EXCHANGES = 1;
@@ -24,8 +24,9 @@ function createNewGame() {
     },
     players: {},      // key: socket.id → { name, animals, exchangesUsed }
     turnOrder: [],    // array of socket ids in join order
+    phase: 'waiting', // phases: 'waiting', 'exchange', 'roll', 'endTurn', 'gameOver'
+    started: false,   // flag to track if game has started
     currentTurnIndex: 0,
-    phase: 'exchange', // phases: 'exchange', 'roll', 'endTurn', 'gameOver'
     lastDice: null
   };
 }
@@ -85,44 +86,87 @@ function rollDie(faces) {
 }
 
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+  console.log('User connected:', socket.id);
   
-  // Join game event. Expect an object with gameId and name.
   socket.on('joinGame', (data) => {
     const { gameId, name } = data;
+    const game = games[gameId];
+    
+    // Check if game exists and has started
+    if (game && game.started) {
+      socket.emit('message', 'Game already in progress. Cannot join.');
+      return;
+    }
+    
+    // Leave any previous rooms
+    socket.rooms.forEach(room => {
+      if (room !== socket.id) {
+        socket.leave(room);
+      }
+    });
+    
+    // Join the new room
     socket.join(gameId);
+    
+    // Create game if it doesn't exist
     if (!games[gameId]) {
       games[gameId] = createNewGame();
     }
-    const game = games[gameId];
-    // If this player is not already added, add them.
-    if (!game.players[socket.id]) {
-      // Take 1 rabbit from the bank, if possible
-      if (game.bank.rabbit > 0) {
-        game.bank.rabbit--;
-      } else {
-        console.warn('Bank has no rabbits left!');
-      }
-      game.players[socket.id] = {
-        name: name || socket.id,
-        animals: { rabbit: 1, sheep: 0, pig: 0, cow: 0, horse: 0, smallDog: 0, bigDog: 0 },
-        exchangesUsed: 0
-      };
-      game.turnOrder.push(socket.id);
-      
-      // If this is the first player, check if they can make exchanges
-      if (game.turnOrder.length === 1) {
-        const player = game.players[socket.id];
-        if (!canMakeAnyExchange(player)) {
-          game.phase = 'roll';
-          io.to(gameId).emit('message', 
-            `${player.name}'s turn (Exchange phase skipped - no possible exchanges).`
-          );
-        }
-      }
+    
+    const currentGame = games[gameId];
+    
+    // Add player to game
+    currentGame.players[socket.id] = {
+      name: name,
+      animals: {
+        rabbit: 0,
+        sheep: 0,
+        pig: 0,
+        cow: 0,
+        horse: 0,
+        smallDog: 0,
+        bigDog: 0
+      },
+      exchangesUsed: 0
+    };
+    
+    if (!currentGame.turnOrder.includes(socket.id)) {
+      currentGame.turnOrder.push(socket.id);
     }
+    
+    io.to(gameId).emit('message', `${name} joined the game.`);
+    io.to(gameId).emit('gameState', gameStateForClients(currentGame));
+  });
+
+  // New event handler for starting the game
+  socket.on('startGame', (data) => {
+    const { gameId } = data;
+    const game = games[gameId];
+    
+    if (!game) return;
+    if (game.started) {
+      socket.emit('message', 'Game already started.');
+      return;
+    }
+    
+    // Need at least 2 players to start
+    if (game.turnOrder.length < 2) {
+      socket.emit('message', 'Need at least 2 players to start the game.');
+      return;
+    }
+    
+    // Start the game
+    game.started = true;
+    game.phase = 'exchange';
+    
+    // Give each player their starting rabbit
+    game.turnOrder.forEach(playerId => {
+      game.players[playerId].animals.rabbit = 1;
+      game.bank.rabbit--;
+    });
+    
+    io.to(gameId).emit('message', 'Game has started! Each player received 1 rabbit.');
     io.to(gameId).emit('gameState', gameStateForClients(game));
-    io.to(gameId).emit('message', `It is ${game.players[game.turnOrder[game.currentTurnIndex]].name}'s turn.`);
   });
   
   // Handle an exchange request.
@@ -344,7 +388,7 @@ io.on('connection', (socket) => {
   
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
-    // Remove player from all games.
+    // Remove player from their game
     for (let gameId in games) {
       const game = games[gameId];
       if (game.players[socket.id]) {
@@ -357,6 +401,11 @@ io.on('connection', (socket) => {
         }
         delete game.players[socket.id];
         io.to(gameId).emit('gameState', gameStateForClients(game));
+        
+        // Clean up empty games
+        if (game.turnOrder.length === 0) {
+          delete games[gameId];
+        }
       }
     }
   });

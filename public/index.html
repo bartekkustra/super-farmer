@@ -120,7 +120,9 @@
     <div id="leftPanel">
       <div id="joinSection">
         <input type="text" id="nameInput" placeholder="Enter your farmer name" />
+        <input type="text" id="roomInput" placeholder="Enter room code (optional)" />
         <button id="joinGameBtn">Start Farming</button>
+        <button id="createGameBtn">Create New Game</button>
       </div>
       
       <canvas id="gameCanvas" width="1200" height="800" style="width: 100%; max-width: 1200px; height: auto;"></canvas>
@@ -128,41 +130,44 @@
     
     <div id="rightPanel">
       <div id="controls" style="display:none;">
-        <div class="section-title">🔄 Exchange Animals</div>
-        <select id="exchangeSelect">
-          <optgroup label="🐰 Rabbits ↔ Sheep 🐑">
-            <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
-            <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
-          </optgroup>
+        <button id="startGameBtn">Start Game</button>
+        <div id="gameControls" style="display:none;">
+          <div class="section-title">🔄 Exchange Animals</div>
+          <select id="exchangeSelect">
+            <optgroup label="🐰 Rabbits ↔ Sheep 🐑">
+              <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
+              <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
+            </optgroup>
+            
+            <optgroup label="🐑 Sheep ↔ Pig 🐷">
+              <option value="sheepToPig">2 Sheep → 1 Pig</option>
+              <option value="pigToSheep">1 Pig → 2 Sheep</option>
+            </optgroup>
+            
+            <optgroup label="🐷 Pig ↔ Cow 🐮">
+              <option value="pigToCow">3 Pigs → 1 Cow</option>
+              <option value="cowToPig">1 Cow → 3 Pigs</option>
+            </optgroup>
+            
+            <optgroup label="🐮 Cow ↔ Horse 🐎">
+              <option value="cowToHorse">2 Cows → 1 Horse</option>
+              <option value="horseToCow">1 Horse → 2 Cows</option>
+            </optgroup>
+            
+            <optgroup label="🐕 Guard Dogs">
+              <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
+              <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
+              <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
+              <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
+            </optgroup>
+          </select>
+          <button id="exchangeBtn">Make Exchange</button>
+          <button id="finishExchangeBtn">End Exchange Phase</button>
           
-          <optgroup label="🐑 Sheep ↔ Pig 🐷">
-            <option value="sheepToPig">2 Sheep → 1 Pig</option>
-            <option value="pigToSheep">1 Pig → 2 Sheep</option>
-          </optgroup>
-          
-          <optgroup label="🐷 Pig ↔ Cow 🐮">
-            <option value="pigToCow">3 Pigs → 1 Cow</option>
-            <option value="cowToPig">1 Cow → 3 Pigs</option>
-          </optgroup>
-          
-          <optgroup label="🐮 Cow ↔ Horse 🐎">
-            <option value="cowToHorse">2 Cows → 1 Horse</option>
-            <option value="horseToCow">1 Horse → 2 Cows</option>
-          </optgroup>
-          
-          <optgroup label="🐕 Guard Dogs">
-            <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
-            <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
-            <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
-            <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
-          </optgroup>
-        </select>
-        <button id="exchangeBtn">Make Exchange</button>
-        <button id="finishExchangeBtn">End Exchange Phase</button>
-        
-        <div class="dice-section">
-          <div class="section-title">🎲 Roll Dice</div>
-          <button id="rollDiceBtn">Roll Dice</button>
+          <div class="dice-section">
+            <div class="section-title">🎲 Roll Dice</div>
+            <button id="rollDiceBtn">Roll Dice</button>
+          </div>
         </div>
       </div>
       
