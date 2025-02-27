@@ -264,17 +264,15 @@ io.on('connection', (socket) => {
           game.bank.bigDog++; // Return big dog to bank
           turnSummary.push(`Wolf attacked! Big Dog protected you but was lost.`);
         } else {
+          console.log('Before wolf attack - Bank rabbits:', game.bank.rabbit, 'Player rabbits:', player.animals.rabbit);
+          
           // Return all animals except horses to bank
           game.bank.rabbit += player.animals.rabbit;
-          game.bank.sheep += player.animals.sheep;
-          game.bank.pig += player.animals.pig;
-          game.bank.cow += player.animals.cow;
-          game.bank.smallDog += player.animals.smallDog;
-          game.bank.bigDog += player.animals.bigDog;
+          console.log('After returning rabbits to bank:', game.bank.rabbit);
           
           turnSummary.push(`Wolf attacked! You lost all animals except your horses.`);
           player.animals = {
-            rabbit: 1, // Give 1 starter rabbit
+            rabbit: 1,
             sheep: 0,
             pig: 0,
             cow: 0,
@@ -283,6 +281,8 @@ io.on('connection', (socket) => {
             bigDog: 0
           };
           game.bank.rabbit--; // Take the starter rabbit from bank
+          console.log('After giving starter rabbit - Bank rabbits:', game.bank.rabbit, 'Player rabbits:', player.animals.rabbit);
+          
           turnSummary.push(`You received 1 starter rabbit from the bank.`);
         }
       }

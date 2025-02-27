@@ -5,10 +5,25 @@ const messagesDiv = document.getElementById('messages');
 const joinSection = document.getElementById('joinSection');
 const controlsDiv = document.getElementById('controls');
 
+// Increase canvas size
+canvas.width = 1200;
+canvas.height = 800;
+
+// Emoji icons for animals
+const animalEmojis = {
+  rabbit: '🐰',
+  sheep: '🐑',
+  pig: '🐷',
+  cow: '🐮',
+  horse: '🐎',
+  smallDog: '🐕',
+  bigDog: '🦮'
+};
+
 let gameState = null;
 let joined = false;
 
-// Handle join game button.
+// Handle join game button
 document.getElementById('joinGameBtn').addEventListener('click', () => {
   const name = document.getElementById('nameInput').value.trim();
   if (!name) {
@@ -51,111 +66,139 @@ document.getElementById('rollDiceBtn').addEventListener('click', () => {
   socket.emit('rollDice', { gameId: 'game1' });
 });
 
-/**
- * Draws a labeled box at (x, y).
- * @param {number} x - The X coordinate of the box.
- * @param {number} y - The Y coordinate of the box.
- * @param {string} text - The text to display inside the box.
- * @param {number} boxWidth - The width of the box (default 80).
- * @param {number} boxHeight - The height of the box (default 80).
- */
-function drawBox(x, y, text, boxWidth = 80, boxHeight = 80) {
-  ctx.fillStyle = '#ccc';
+function drawBankBox(x, y, animal, count, boxWidth = 150, boxHeight = 150) {
+  // Draw box with green background
+  ctx.fillStyle = '#90EE90'; // Light green
   ctx.fillRect(x, y, boxWidth, boxHeight);
-  ctx.strokeStyle = '#000';
+  
+  // Add darker green border
+  ctx.strokeStyle = '#228B22'; // Forest green
+  ctx.lineWidth = 3;
   ctx.strokeRect(x, y, boxWidth, boxHeight);
   
-  // Split text into lines
-  const lines = text.split('\n');
+  // Draw large emoji
+  ctx.font = '40px Arial';
   ctx.fillStyle = '#000';
-  ctx.font = '12px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(animalEmojis[animal], x + boxWidth/2, y + boxHeight/2);
   
-  // We start drawing text a bit down from the top.
-  let lineY = y + 16;
-  const lineHeight = 14;
-  for (const line of lines) {
-    ctx.fillText(line, x + 5, lineY);
-    lineY += lineHeight;
+  // Draw count (removed "x")
+  ctx.font = 'bold 24px Comic Sans MS';
+  ctx.fillText(count, x + boxWidth/2, y + boxHeight/2 + 40);
+  ctx.textAlign = 'left'; // Reset alignment
+}
+
+function drawPlayerBox(x, y, player, isCurrentTurn, boxWidth = 200, boxHeight = 250) {
+  // Draw player name above the box
+  ctx.fillStyle = '#5c3c10';
+  ctx.font = 'bold 24px Comic Sans MS';
+  const nameText = player.name + (isCurrentTurn ? ' 👈' : '');
+  ctx.fillText(nameText, x, y);
+  
+  // Adjust y position to add space between name and box
+  y += 30;
+  
+  // Draw box with light background
+  ctx.fillStyle = '#f9f9f9';
+  ctx.fillRect(x, y, boxWidth, boxHeight);
+  ctx.strokeStyle = '#8b4513';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x, y, boxWidth, boxHeight);
+  
+  // Draw animals in two columns
+  const colWidth = boxWidth / 2;
+  let leftY = y + 30;
+  let rightY = y + 30;
+  let count = 0;
+  
+  for (let animal in player.animals) {
+    const isRightColumn = count % 2;
+    const currentY = isRightColumn ? rightY : leftY;
+    const currentX = x + (isRightColumn ? colWidth : 10);
+    
+    // Draw emoji and count
+    ctx.font = '30px Arial';
+    ctx.fillStyle = '#000';
+    ctx.fillText(animalEmojis[animal], currentX, currentY);
+    ctx.font = '18px Comic Sans MS';
+    ctx.fillText(player.animals[animal], currentX + 40, currentY); // Removed "x"
+    
+    if (isRightColumn) {
+      rightY += 40;
+    } else {
+      leftY += 40;
+    }
+    count++;
   }
 }
 
-/**
- * Render the entire game state on the canvas.
- */
 function renderGameState() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   if (!gameState) return;
   
-  // 1) Draw the Bank
-  ctx.fillStyle = '#000';
-  ctx.font = '18px Arial';
-  ctx.fillText('Bank:', 10, 30);
+  // Draw background
+  ctx.fillStyle = '#fff5e6';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  let x = 10, y = 40;
-  let colCount = 0;
-  for (let animal in gameState.bank) {
-    // Bank boxes: 80x80
-    drawBox(x, y, `${animal}:\n${gameState.bank[animal]}`, 80, 80);
-    x += 90;
-    colCount++;
-    if (colCount % 6 === 0) { // move to a new row after 6 columns
-      x = 10;
-      y += 90;
-    }
-  }
+  // Draw bank section
+  ctx.fillStyle = '#5c3c10';
+  ctx.font = 'bold 28px Comic Sans MS';
+  ctx.fillText('🏦 Bank', 20, 40);
   
-  // 2) Draw Players
-  y += 100; // leave some vertical space after the bank
-  ctx.fillStyle = '#000';
-  ctx.font = '18px Arial';
-  ctx.fillText('Players:', 10, y);
+  // Draw bank boxes
+  let x = 20, y = 60;
+  const bankBoxWidth = 120;
+  const bankBoxHeight = 120;
+  const boxesPerRow = Math.floor((canvas.width - 40) / (bankBoxWidth + 10));
   
-  y += 10;
-  x = 10;
-  let playerBoxStartY = y;
-  
-  // For players, use bigger boxes (e.g., 120 wide x 140 high)
-  const playerBoxWidth = 120;
-  const playerBoxHeight = 140;
-  colCount = 0;
-  
-  gameState.turnOrder.forEach((pid) => {
-    const player = gameState.players[pid];
-    let label = player.name;
-    if (pid === gameState.currentTurn) {
-      label += ' (current turn)';
-    }
-    // Build multi-line text for animals
-    let animalsText = '';
-    for (let a in player.animals) {
-      animalsText += `${a}: ${player.animals[a]}\n`;
-    }
-    const fullText = label + '\n' + animalsText.trim();
-    
-    drawBox(x, y, fullText, playerBoxWidth, playerBoxHeight);
-    
-    x += (playerBoxWidth + 10);
-    colCount++;
-    // If we exceed the canvas width, move to next row
-    if (x + playerBoxWidth > canvas.width - 20) {
-      x = 10;
-      y += (playerBoxHeight + 10);
-      colCount = 0;
+  Object.entries(gameState.bank).forEach(([animal, count], index) => {
+    drawBankBox(x, y, animal, count, bankBoxWidth, bankBoxHeight);
+    x += bankBoxWidth + 10;
+    if ((index + 1) % boxesPerRow === 0) {
+      x = 20;
+      y += bankBoxHeight + 10;
     }
   });
   
-  // 3) Show Phase & Last Dice
-  y = y + playerBoxHeight + 30;
-  ctx.fillStyle = '#000';
-  ctx.font = '16px Arial';
-  ctx.fillText(`Phase: ${gameState.phase}`, 10, y);
+  // Increased spacing between Bank and Farmers sections
+  y += bankBoxHeight + 80; // Changed from 40 to 80
+  
+  // Draw players section
+  ctx.fillStyle = '#5c3c10';
+  ctx.font = 'bold 28px Comic Sans MS';
+  ctx.fillText('👨‍🌾 Farmers', 20, y);
+  
+  // Increased spacing here
+  y += 50; // Changed from 20 to 50
+  x = 20;
+  const playerBoxWidth = 200;
+  const playerBoxHeight = 250;
+  
+  gameState.turnOrder.forEach((pid, index) => {
+    const player = gameState.players[pid];
+    const isCurrentTurn = pid === gameState.currentTurn;
+    
+    drawPlayerBox(x, y, player, isCurrentTurn, playerBoxWidth, playerBoxHeight);
+    
+    x += playerBoxWidth + 20;
+    if (x + playerBoxWidth > canvas.width - 20) {
+      x = 20;
+      y += playerBoxHeight + 20;
+    }
+  });
+  
+  // Draw game phase at the bottom
+  const statusY = canvas.height - 60;
+  ctx.fillStyle = '#5c3c10';
+  ctx.font = 'bold 20px Comic Sans MS';
+  ctx.fillText(`🎮 Phase: ${gameState.phase}`, 20, statusY);
   
   if (gameState.lastDice) {
     ctx.fillText(
-      `Last Dice → Red: ${gameState.lastDice.red}, Blue: ${gameState.lastDice.blue}`,
-      10,
-      y + 20
+      `🎲 Last Roll → Red: ${gameState.lastDice.red}, Blue: ${gameState.lastDice.blue}`,
+      20,
+      statusY + 30
     );
   }
 }

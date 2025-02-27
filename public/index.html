@@ -1,87 +1,175 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Animal Board Game</title>
+  <title>Super Farmer</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Comic Sans MS', 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f0e6d2;
     }
+
+    h1 {
+      text-align: center;
+      color: #5c3c10;
+      font-size: 2.5em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      margin-bottom: 30px;
+    }
+
+    #gameBoard {
+      display: flex;
+      gap: 30px;
+    }
+
+    #leftPanel {
+      flex: 1;
+    }
+
+    #rightPanel {
+      width: 300px;
+    }
+
     #joinSection, #controls {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin-bottom: 25px;
+    }
+
+    #gameCanvas {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    #messages {
+      background: #fff;
+      border-radius: 10px;
+      height: 400px;
+      overflow-y: scroll;
+      padding: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    #messages p {
+      margin: 8px 0;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    button {
+      background-color: #8b4513;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Comic Sans MS', 'Arial', sans-serif;
+      transition: background-color 0.2s;
+      margin: 10px 0;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #a0522d;
+    }
+
+    select {
+      padding: 10px;
+      border-radius: 5px;
+      border: 2px solid #8b4513;
+      font-family: 'Comic Sans MS', 'Arial', sans-serif;
+      width: 100%;
       margin-bottom: 15px;
     }
-    #messages {
-      border: 1px solid #ccc;
-      height: 300px;
-      overflow-y: scroll;
-      margin-top: 10px;
-      padding: 5px;
-      background: #fafafa;
-    }
-    canvas {
-      border: 1px solid #000;
+
+    input {
+      padding: 10px;
+      border-radius: 5px;
+      border: 2px solid #8b4513;
+      font-family: 'Comic Sans MS', 'Arial', sans-serif;
+      width: 100%;
       margin-bottom: 10px;
     }
-    button, input, select {
-      margin: 5px;
-      padding: 6px 8px;
-      font-size: 14px;
-    }
+
     .section-title {
+      color: #5c3c10;
       font-weight: bold;
-      margin: 10px 0 5px 0;
+      margin: 25px 0 15px 0;
+      font-size: 1.2em;
+    }
+
+    .dice-section {
+      margin: 25px 0;
+    }
+
+    .animal-icon {
+      width: 40px;
+      height: 40px;
+      vertical-align: middle;
     }
   </style>
 </head>
 <body>
-  <h1>Animal Board Game</h1>
+  <h1>🌾 Super Farmer 🐑</h1>
   
-  <div id="joinSection">
-    <input type="text" id="nameInput" placeholder="Enter your name" />
-    <button id="joinGameBtn">Join Game</button>
-  </div>
-  
-  <canvas id="gameCanvas" width="900" height="500"></canvas>
-  
-  <div id="controls" style="display:none;">
-    <div class="section-title">Exchange Animals (max 2 exchanges per turn):</div>
-    <select id="exchangeSelect">
-      <optgroup label="Rabbits ↔ Sheep">
-        <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
-        <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
-      </optgroup>
+  <div id="gameBoard">
+    <div id="leftPanel">
+      <div id="joinSection">
+        <input type="text" id="nameInput" placeholder="Enter your farmer name" />
+        <button id="joinGameBtn">Start Farming</button>
+      </div>
       
-      <optgroup label="Sheep ↔ Pig">
-        <option value="sheepToPig">2 Sheep → 1 Pig</option>
-        <option value="pigToSheep">1 Pig → 2 Sheep</option>
-      </optgroup>
-      
-      <optgroup label="Pig ↔ Cow">
-        <option value="pigToCow">3 Pigs → 1 Cow</option>
-        <option value="cowToPig">1 Cow → 3 Pigs</option>
-      </optgroup>
-      
-      <optgroup label="Cow ↔ Horse">
-        <option value="cowToHorse">2 Cows → 1 Horse</option>
-        <option value="horseToCow">1 Horse → 2 Cows</option>
-      </optgroup>
-      
-      <optgroup label="Guard Dogs">
-        <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
-        <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
-        <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
-        <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
-      </optgroup>
-    </select>
-    <button id="exchangeBtn">Exchange</button>
-    <button id="finishExchangeBtn">Finish Exchange</button>
+      <canvas id="gameCanvas" width="1200" height="800" style="width: 100%; max-width: 1200px; height: auto;"></canvas>
+    </div>
     
-    <div class="section-title">Roll the Dice:</div>
-    <button id="rollDiceBtn">Roll Dice</button>
+    <div id="rightPanel">
+      <div id="controls" style="display:none;">
+        <div class="section-title">🔄 Exchange Animals</div>
+        <select id="exchangeSelect">
+          <optgroup label="🐰 Rabbits ↔ Sheep 🐑">
+            <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
+            <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
+          </optgroup>
+          
+          <optgroup label="🐑 Sheep ↔ Pig 🐷">
+            <option value="sheepToPig">2 Sheep → 1 Pig</option>
+            <option value="pigToSheep">1 Pig → 2 Sheep</option>
+          </optgroup>
+          
+          <optgroup label="🐷 Pig ↔ Cow 🐮">
+            <option value="pigToCow">3 Pigs → 1 Cow</option>
+            <option value="cowToPig">1 Cow → 3 Pigs</option>
+          </optgroup>
+          
+          <optgroup label="🐮 Cow ↔ Horse 🐎">
+            <option value="cowToHorse">2 Cows → 1 Horse</option>
+            <option value="horseToCow">1 Horse → 2 Cows</option>
+          </optgroup>
+          
+          <optgroup label="🐕 Guard Dogs">
+            <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
+            <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
+            <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
+            <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
+          </optgroup>
+        </select>
+        <button id="exchangeBtn">Make Exchange</button>
+        <button id="finishExchangeBtn">End Exchange Phase</button>
+        
+        <div class="dice-section">
+          <div class="section-title">🎲 Roll Dice</div>
+          <button id="rollDiceBtn">Roll Dice</button>
+        </div>
+      </div>
+      
+      <div id="messages"></div>
+    </div>
   </div>
-  
-  <div id="messages"></div>
-  
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
 </body>
