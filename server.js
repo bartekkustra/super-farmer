@@ -283,105 +283,78 @@ io.on('connection', (socket) => {
     const rolledFox = (redResult === 'fox');
     const rolledWolf = (blueResult === 'wolf');
     
-    if (rolledFox || rolledWolf) {
-      // Penalty phase – no bonus collection.
-      if (rolledWolf && rolledFox) {
-        if (player.animals.bigDog > 0) {
-          player.animals.bigDog = Math.max(player.animals.bigDog - 1, 0);
-          game.bank.bigDog++; // Return big dog to bank
-          turnSummary.push(`Wolf & Fox attacked! Big Dog protected you but was lost.`);
+    if (rolledWolf && rolledFox) {
+      // Handle wolf attack first
+      if (player.animals.bigDog > 0) {
+        player.animals.bigDog--;
+        game.bank.bigDog++;
+        turnSummary.push(`Wolf attacked! Big Dog protected your animals but was lost.`);
+      } else {
+        // Return only cows, sheep, and pigs to bank
+        game.bank.cow += player.animals.cow;
+        game.bank.sheep += player.animals.sheep;
+        game.bank.pig += player.animals.pig;
+        
+        // Reset only cows, sheep, and pigs
+        player.animals.cow = 0;
+        player.animals.sheep = 0;
+        player.animals.pig = 0;
+        
+        turnSummary.push(`Wolf attacked! You lost all cows, sheep, and pigs.`);
+      }
+
+      // Then handle fox attack
+      if (player.animals.smallDog > 0) {
+        player.animals.smallDog--;
+        game.bank.smallDog++;
+        turnSummary.push(`Fox attacked! Small Dog protected your rabbits but was lost.`);
+      } else {
+        if (player.animals.rabbit > 1) {
+          const rabbitsLost = player.animals.rabbit - 1;
+          game.bank.rabbit += rabbitsLost;
+          turnSummary.push(`Fox attacked! You lost all rabbits except one.`);
+          player.animals.rabbit = 1;
         } else {
-          // Return all animals except horses to bank
-          game.bank.rabbit += player.animals.rabbit;
-          game.bank.sheep += player.animals.sheep;
-          game.bank.pig += player.animals.pig;
-          game.bank.cow += player.animals.cow;
-          game.bank.smallDog += player.animals.smallDog;
-          game.bank.bigDog += player.animals.bigDog;
-          
-          turnSummary.push(`Wolf & Fox attacked! You lost all animals except your horses.`);
-          player.animals = {
-            rabbit: 0,
-            sheep: 0,
-            pig: 0,
-            cow: 0,
-            horse: player.animals.horse,
-            smallDog: 0,
-            bigDog: 0
-          };
-        }
-      } else if (rolledFox) {
-        if (player.animals.smallDog > 0) {
-          player.animals.smallDog--;
-          game.bank.smallDog++; // Return small dog to bank
-          turnSummary.push(`Fox attacked! Small Dog protected your rabbits but was lost.`);
-        } else {
-          if (player.animals.rabbit > 1) {
-            const rabbitsLost = player.animals.rabbit - 1;
-            game.bank.rabbit += rabbitsLost; // Return lost rabbits to bank
-            turnSummary.push(`Fox attacked! You lost all rabbits except one.`);
-            player.animals.rabbit = 1;
-          } else {
-            turnSummary.push(`Fox attacked! You only had one rabbit, so it remains.`);
-          }
-        }
-      } else if (rolledWolf) {
-        if (player.animals.bigDog > 0) {
-          player.animals.bigDog--;
-          game.bank.bigDog++; // Return big dog to bank
-          turnSummary.push(`Wolf attacked! Big Dog protected you but was lost.`);
-        } else {
-          console.log('Before wolf attack - Bank rabbits:', game.bank.rabbit, 'Player rabbits:', player.animals.rabbit);
-          
-          // Return all animals except horses to bank
-          game.bank.rabbit += player.animals.rabbit;
-          console.log('After returning rabbits to bank:', game.bank.rabbit);
-          
-          turnSummary.push(`Wolf attacked! You lost all animals except your horses.`);
-          player.animals = {
-            rabbit: 1,
-            sheep: 0,
-            pig: 0,
-            cow: 0,
-            horse: player.animals.horse,
-            smallDog: 0,
-            bigDog: 0
-          };
-          game.bank.rabbit--; // Take the starter rabbit from bank
-          console.log('After giving starter rabbit - Bank rabbits:', game.bank.rabbit, 'Player rabbits:', player.animals.rabbit);
-          
-          turnSummary.push(`You received 1 starter rabbit from the bank.`);
+          turnSummary.push(`Fox attacked! You only had one rabbit, so it remains.`);
         }
       }
-    } else {
-      // No penalties – process bonus collection for the 5 main animals
-      const animalTypes = ['rabbit', 'sheep', 'pig', 'cow', 'horse'];
-      animalTypes.forEach(animal => {
-          let diceCount = 0;
-          if (redResult === animal) diceCount++;
-          if (blueResult === animal) diceCount++;
-          
-          if (diceCount > 0) {
-              // Calculate total number of this animal type (current + dice)
-              const totalCount = player.animals[animal] + diceCount;
-              const pairs = Math.floor(totalCount / 2);
-              
-              if (pairs > 0 && game.bank[animal] > 0) {
-                  // Get pair rewards from bank (limited by bank availability)
-                  const pairsFromBank = Math.min(pairs, game.bank[animal]);
-                  game.bank[animal] -= pairsFromBank;
-                  // Only add the pair rewards from bank (not the dice results)
-                  player.animals[animal] += pairsFromBank;
-                  
-                  turnSummary.push(
-                      `Rolled ${diceCount} ${animal}(s). Total ${totalCount} makes ${pairs} pair(s), ` +
-                      `gained ${pairsFromBank} from bank.`
-                  );
-              } else {
-                  turnSummary.push(`Rolled ${diceCount} ${animal}(s). Total ${totalCount} (no pairs).`);
-              }
-          }
-      });
+    } else if (rolledFox) {
+      if (player.animals.smallDog > 0) {
+        player.animals.smallDog--;
+        game.bank.smallDog++; // Return small dog to bank
+        turnSummary.push(`Fox attacked! Small Dog protected your rabbits but was lost.`);
+      } else {
+        if (player.animals.rabbit > 1) {
+          const rabbitsLost = player.animals.rabbit - 1;
+          game.bank.rabbit += rabbitsLost; // Return lost rabbits to bank
+          turnSummary.push(`Fox attacked! You lost all rabbits except one.`);
+          player.animals.rabbit = 1;
+        } else {
+          turnSummary.push(`Fox attacked! You only had one rabbit, so it remains.`);
+        }
+      }
+    } else if (rolledWolf) {
+      if (player.animals.bigDog > 0) {
+        player.animals.bigDog--;
+        game.bank.bigDog++; // Return big dog to bank
+        turnSummary.push(`Wolf attacked! Big Dog protected you but was lost.`);
+      } else {
+        console.log('Before wolf attack - Animals:', player.animals);
+        
+        // Return only cows, sheep, and pigs to bank
+        game.bank.cow += player.animals.cow;
+        game.bank.sheep += player.animals.sheep;
+        game.bank.pig += player.animals.pig;
+        
+        // Reset only cows, sheep, and pigs
+        player.animals.cow = 0;
+        player.animals.sheep = 0;
+        player.animals.pig = 0;
+        
+        console.log('After wolf attack - Animals:', player.animals);
+        
+        turnSummary.push(`Wolf attacked! You lost all cows, sheep, and pigs.`);
+      }
     }
     
     game.phase = 'endTurn';
