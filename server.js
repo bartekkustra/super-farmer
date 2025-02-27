@@ -30,7 +30,8 @@ function createNewGame() {
     started: false,   // flag to track if game has started
     currentTurnIndex: 0,
     lastDice: null,
-    roundNumber: 1    // Add round tracking
+    roundNumber: 1,    // Add round tracking
+    drawVotes: new Set()  // Add this to track draw votes
   };
 }
 
@@ -472,22 +473,50 @@ io.on('connection', (socket) => {
     io.emit('roomList', getAvailableRooms());
   });
 
-  // Add new socket event for declaring a draw
+  // Modify the draw handler
   socket.on('declareDraw', (data) => {
     const { gameId } = data;
     const game = games[gameId];
     
-    if (!game || !game.started || game.phase !== 'gameOver') return;
+    if (!game || !game.started) return;
     
-    // Give everyone a point
-    Object.values(game.players).forEach(player => {
-      player.score += 1;
-    });
+    // Add this player's vote
+    game.drawVotes.add(socket.id);
     
-    // Start new round
-    startNewRound(gameId);
+    // Check if all players have voted for draw
+    const allVoted = game.turnOrder.every(playerId => game.drawVotes.has(playerId));
     
-    io.to(gameId).emit('message', `Round ${game.roundNumber - 1} ended in a draw! Everyone gets 1 point.`);
+    if (allVoted) {
+      // Give everyone a point
+      Object.values(game.players).forEach(player => {
+        player.score += 1;
+      });
+      
+      // Reset draw votes
+      game.drawVotes.clear();
+      
+      // Start new round
+      startNewRound(gameId);
+      
+      io.to(gameId).emit('message', `Round ${game.roundNumber - 1} ended in a draw! Everyone gets 1 point.`);
+    } else {
+      // Notify others that this player voted for a draw
+      io.to(gameId).emit('message', `${game.players[socket.id].name} has voted for a draw. Waiting for other players...`);
+    }
+    
+    io.to(gameId).emit('gameState', gameStateForClients(game));
+  });
+
+  // Add handler for canceling draw vote
+  socket.on('cancelDraw', (data) => {
+    const { gameId } = data;
+    const game = games[gameId];
+    
+    if (!game || !game.started) return;
+    
+    // Remove this player's vote
+    game.drawVotes.delete(socket.id);
+    io.to(gameId).emit('message', `${game.players[socket.id].name} has canceled their draw vote.`);
     io.to(gameId).emit('gameState', gameStateForClients(game));
   });
 
@@ -575,7 +604,8 @@ function gameStateForClients(game) {
     phase: game.phase,
     started: game.started,
     lastDice: game.lastDice || null,
-    roundNumber: game.roundNumber
+    roundNumber: game.roundNumber,
+    drawVotes: Array.from(game.drawVotes)  // Convert Set to Array for client
   };
 }
 

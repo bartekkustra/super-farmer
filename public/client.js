@@ -273,7 +273,7 @@ function drawBankBox(x, y, animal, count, boxWidth = 150, boxHeight = 150) {
   ctx.textAlign = 'left'; // Reset alignment
 }
 
-function drawPlayerBox(x, y, player, isCurrentTurn, boxWidth = 200, boxHeight = 250) {
+function drawPlayerBox(x, y, player, isCurrentTurn, boxWidth = 250, boxHeight = 250) {
   // Draw player name and score above the box
   ctx.fillStyle = '#5c3c10';
   ctx.font = 'bold 24px Comic Sans MS';
@@ -290,28 +290,28 @@ function drawPlayerBox(x, y, player, isCurrentTurn, boxWidth = 200, boxHeight = 
   ctx.lineWidth = 3;
   ctx.strokeRect(x, y, boxWidth, boxHeight);
   
-  // Draw animals in two columns
+  // Draw animals in two columns with more padding
   const colWidth = boxWidth / 2;
-  let leftY = y + 30;
-  let rightY = y + 30;
+  let leftY = y + 40;  // Increased from 30 to 40 for top padding
+  let rightY = y + 40; // Increased from 30 to 40 for top padding
   let count = 0;
   
   for (let animal in player.animals) {
     const isRightColumn = count % 2;
     const currentY = isRightColumn ? rightY : leftY;
-    const currentX = x + (isRightColumn ? colWidth : 10);
+    const currentX = x + (isRightColumn ? colWidth : 20); // Increased left padding from 10 to 20
     
-    // Draw emoji and count
-    ctx.font = '30px Arial';
+    // Draw emoji and count with larger sizes
+    ctx.font = '35px Arial';  // Increased from 30px to 35px
     ctx.fillStyle = '#000';
     ctx.fillText(animalEmojis[animal], currentX, currentY);
-    ctx.font = '18px Comic Sans MS';
-    ctx.fillText(player.animals[animal], currentX + 40, currentY); // Removed "x"
+    ctx.font = '22px Comic Sans MS'; // Increased from 18px to 22px
+    ctx.fillText(player.animals[animal], currentX + 45, currentY); // Increased spacing from 40 to 45
     
     if (isRightColumn) {
-      rightY += 40;
+      rightY += 45; // Increased spacing between rows from 40 to 45
     } else {
-      leftY += 40;
+      leftY += 45; // Increased spacing between rows from 40 to 45
     }
     count++;
   }
@@ -354,23 +354,13 @@ function renderGameState() {
   ctx.font = 'bold 28px Comic Sans MS';
   ctx.fillText('👨‍🌾 Farmers', 20, y);
   
-  // Increased spacing here
-  y += 50; // Changed from 20 to 50
-  x = 20;
-  const playerBoxWidth = 200;
-  const playerBoxHeight = 250;
-  
-  gameState.turnOrder.forEach((pid, index) => {
-    const player = gameState.players[pid];
-    const isCurrentTurn = pid === gameState.currentTurn;
-    
-    drawPlayerBox(x, y, player, isCurrentTurn, playerBoxWidth, playerBoxHeight);
-    
-    x += playerBoxWidth + 20;
-    if (x + playerBoxWidth > canvas.width - 20) {
-      x = 20;
-      y += playerBoxHeight + 20;
-    }
+  // Adjust spacing between player boxes for the wider width
+  let playerX = 20;
+  const playerY = y + 50;
+  Object.entries(gameState.players).forEach(([playerId, player]) => {
+    const isCurrentTurn = playerId === gameState.currentTurn;
+    drawPlayerBox(playerX, playerY, player, isCurrentTurn);
+    playerX += 280;
   });
   
   // Draw game phase at the bottom
