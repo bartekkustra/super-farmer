@@ -3,6 +3,8 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
+const SHOULD_LOG = false
+
 // Serve static files from "public"
 app.use(express.static('public'));
 
@@ -100,11 +102,11 @@ function getAvailableRooms() {
 }
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  SHOULD_LOG && console.log('User connected:', socket.id);
   
   // Send initial room list to new connections
   const rooms = getAvailableRooms();
-  console.log('Sending initial room list:', rooms); // Debug log
+  SHOULD_LOG && console.log('Sending initial room list:', rooms); // Debug log
   socket.emit('roomList', rooms);
   
   socket.on('joinGame', (data) => {
@@ -360,7 +362,7 @@ io.on('connection', (socket) => {
         game.bank.bigDog++; // Return big dog to bank
         turnSummary.push(`Wolf attacked! Big Dog protected you but was lost.`);
       } else {
-        console.log('Before wolf attack - Animals:', player.animals);
+        SHOULD_LOG && console.log('Before wolf attack - Animals:', player.animals);
         
         // Return only cows, sheep, and pigs to bank
         game.bank.cow += player.animals.cow;
@@ -372,7 +374,7 @@ io.on('connection', (socket) => {
         player.animals.sheep = 0;
         player.animals.pig = 0;
         
-        console.log('After wolf attack - Animals:', player.animals);
+        SHOULD_LOG && console.log('After wolf attack - Animals:', player.animals);
         
         turnSummary.push(`Wolf attacked! You lost all cows, sheep, and pigs.`);
       }
@@ -441,7 +443,7 @@ io.on('connection', (socket) => {
   });
   
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    SHOULD_LOG && console.log('User disconnected:', socket.id);
     // Remove player from their game
     for (let gameId in games) {
       const game = games[gameId];
@@ -511,5 +513,5 @@ function gameStateForClients(game) {
 }
 
 http.listen(3000, () => {
-  console.log('Server listening on port 3000');
+  SHOULD_LOG && console.log('Server listening on port 3000');
 });

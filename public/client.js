@@ -7,6 +7,8 @@ const controlsDiv = document.getElementById('controls');
 const startGameBtn = document.getElementById('startGameBtn');
 const gameControls = document.getElementById('gameControls');
 
+const SHOULD_LOG = false
+
 // Increase canvas size
 canvas.width = 1200;
 canvas.height = 800;
@@ -142,7 +144,7 @@ function updateRoomList(rooms) {
 
 // Socket event handlers
 socket.on('roomList', (rooms) => {
-  console.log('Received room list:', rooms); // Debug log
+  SHOULD_LOG && console.log('Received room list:', rooms); // Debug log
   updateRoomList(rooms);
 });
 
@@ -212,7 +214,7 @@ window.addEventListener('load', () => {
 
 // Socket event handlers
 socket.on('gameState', (state) => {
-  console.log('Received game state:', {
+  SHOULD_LOG && console.log('Received game state:', {
     started: state.started,
     phase: state.phase,
     players: Object.keys(state.players).length,
@@ -221,17 +223,18 @@ socket.on('gameState', (state) => {
   
   gameState = state;
   updateControlButtons();
+  updateExchangeOptions();
   
   // Show/hide appropriate controls based on game state
   const startGameBtn = document.getElementById('startGameBtn');
   const gameControls = document.getElementById('gameControls');
   
   if (gameState.started) {
-    console.log('Game started, showing game controls');
+    SHOULD_LOG && console.log('Game started, showing game controls');
     startGameBtn.style.display = 'none';
     gameControls.style.display = 'block';
   } else {
-    console.log('Game not started, showing start button');
+    SHOULD_LOG && console.log('Game not started, showing start button');
     startGameBtn.style.display = 'block';
     gameControls.style.display = 'none';
   }
@@ -399,12 +402,23 @@ function updateControlButtons() {
     return;
   }
   
-  // Enable/disable buttons based on game phase
+  // Get current player's exchange count
+  const currentPlayer = gameState.players[socket.id];
+  const exchangesUsed = currentPlayer.exchangesUsed || 0;
+  const maxExchangesReached = exchangesUsed >= MAX_NUMBER_OF_EXCHANGES;
+  
+  // Enable/disable buttons based on game phase and exchanges used
   switch (gameState.phase) {
     case 'exchange':
-      exchangeBtn.disabled = false;
-      finishExchangeBtn.disabled = false;
+      exchangeBtn.disabled = maxExchangesReached;
+      finishExchangeBtn.disabled = maxExchangesReached;
       rollDiceBtn.disabled = true;
+      
+      // If max exchanges reached, automatically move to roll phase
+      if (maxExchangesReached) {
+        const roomCode = document.getElementById('roomInput').value;
+        socket.emit('finishExchange', { gameId: roomCode });
+      }
       break;
     case 'roll':
       exchangeBtn.disabled = true;
@@ -419,3 +433,79 @@ function updateControlButtons() {
       break;
   }
 }
+
+// Add this helper function
+function canAffordExchange(player, rule) {
+  for (let animal in rule.cost) {
+    // Special check for rabbits to ensure player keeps at least 1
+    if (animal === 'rabbit' && player.animals[animal] - rule.cost[animal] < 1) {
+      return false;
+    }
+    // Normal check for other animals
+    if ((player.animals[animal] || 0) < rule.cost[animal]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Add this function to update exchange options
+function updateExchangeOptions() {
+  if (!gameState) return;
+  
+  const exchangeSelect = document.getElementById('exchangeSelect');
+  const currentPlayer = gameState.players[socket.id];
+  
+  // Store all optgroups to maintain structure
+  const optgroups = exchangeSelect.getElementsByTagName('optgroup');
+  
+  // For each optgroup
+  Array.from(optgroups).forEach(group => {
+    // For each option in the group
+    Array.from(group.getElementsByTagName('option')).forEach(option => {
+      const exchangeType = option.value;
+      const rule = exchangeRules[exchangeType];
+      
+      // Disable option if player can't afford it or bank doesn't have reward
+      const canAfford = canAffordExchange(currentPlayer, rule);
+      const bankHasReward = Object.entries(rule.reward).every(([animal, count]) => 
+        gameState.bank[animal] >= count
+      );
+      
+      option.disabled = !canAfford || !bankHasReward;
+      
+      // Update option text to show why it's unavailable
+      const originalText = option.getAttribute('data-original-text') || option.text;
+      if (!option.getAttribute('data-original-text')) {
+        option.setAttribute('data-original-text', originalText);
+      }
+      
+      if (!canAfford) {
+        option.text = `${originalText} (not enough animals)`;
+      } else if (!bankHasReward) {
+        option.text = `${originalText} (not available in bank)`;
+      } else {
+        option.text = originalText;
+      }
+    });
+  });
+}
+
+// Add near the top of the file with other constants
+const exchangeRules = {
+  rabbitToSheep: { cost: { rabbit: 6 }, reward: { sheep: 1 } },
+  sheepToPig: { cost: { sheep: 2 }, reward: { pig: 1 } },
+  pigToCow: { cost: { pig: 3 }, reward: { cow: 1 } },
+  cowToHorse: { cost: { cow: 2 }, reward: { horse: 1 } },
+  sheepToSmallDog: { cost: { sheep: 1 }, reward: { smallDog: 1 } },
+  cowToBigDog: { cost: { cow: 1 }, reward: { bigDog: 1 } },
+  sheepToRabbit: { cost: { sheep: 1 }, reward: { rabbit: 6 } },
+  pigToSheep: { cost: { pig: 1 }, reward: { sheep: 2 } },
+  cowToPig: { cost: { cow: 1 }, reward: { pig: 3 } },
+  horseToCow: { cost: { horse: 1 }, reward: { cow: 2 } },
+  smallDogToSheep: { cost: { smallDog: 1 }, reward: { sheep: 1 } },
+  bigDogToCow: { cost: { bigDog: 1 }, reward: { cow: 1 } }
+};
+
+// Add near the top with other constants
+const MAX_NUMBER_OF_EXCHANGES = 1;
