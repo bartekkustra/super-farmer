@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Animal Board Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #joinSection, #controls {
+      margin-bottom: 15px;
+    }
+    #messages {
+      border: 1px solid #ccc;
+      height: 150px;
+      overflow-y: scroll;
+      margin-top: 10px;
+      padding: 5px;
+      background: #fafafa;
+    }
+    canvas {
+      border: 1px solid #000;
+      margin-bottom: 10px;
+    }
+    button, input, select {
+      margin: 5px;
+      padding: 6px 8px;
+      font-size: 14px;
+    }
+    .section-title {
+      font-weight: bold;
+      margin: 10px 0 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Animal Board Game</h1>
+  
+  <div id="joinSection">
+    <input type="text" id="nameInput" placeholder="Enter your name" />
+    <button id="joinGameBtn">Join Game</button>
+  </div>
+  
+  <canvas id="gameCanvas" width="900" height="500"></canvas>
+  
+  <div id="controls" style="display:none;">
+    <div class="section-title">Exchange Animals (max 2 exchanges per turn):</div>
+    <select id="exchangeSelect">
+      <optgroup label="Rabbits ↔ Sheep">
+        <option value="rabbitToSheep">6 Rabbits → 1 Sheep</option>
+        <option value="sheepToRabbit">1 Sheep → 6 Rabbits</option>
+      </optgroup>
+      
+      <optgroup label="Sheep ↔ Pig">
+        <option value="sheepToPig">2 Sheep → 1 Pig</option>
+        <option value="pigToSheep">1 Pig → 2 Sheep</option>
+      </optgroup>
+      
+      <optgroup label="Pig ↔ Cow">
+        <option value="pigToCow">3 Pigs → 1 Cow</option>
+        <option value="cowToPig">1 Cow → 3 Pigs</option>
+      </optgroup>
+      
+      <optgroup label="Cow ↔ Horse">
+        <option value="cowToHorse">2 Cows → 1 Horse</option>
+        <option value="horseToCow">1 Horse → 2 Cows</option>
+      </optgroup>
+      
+      <optgroup label="Guard Dogs">
+        <option value="sheepToSmallDog">1 Sheep → 1 Small Dog</option>
+        <option value="smallDogToSheep">1 Small Dog → 1 Sheep</option>
+        <option value="cowToBigDog">1 Cow → 1 Big Dog</option>
+        <option value="bigDogToCow">1 Big Dog → 1 Cow</option>
+      </optgroup>
+    </select>
+    <button id="exchangeBtn">Exchange</button>
+    <button id="finishExchangeBtn">Finish Exchange</button>
+    
+    <div class="section-title">Roll the Dice:</div>
+    <button id="rollDiceBtn">Roll Dice</button>
+  </div>
+  
+  <div id="messages"></div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
