@@ -21,7 +21,9 @@ const animalEmojis = {
   cow: '🐮',
   horse: '🐎',
   smallDog: '🐕',
-  bigDog: '🦮'
+  bigDog: '🦮',
+  wolf: '🐺',
+  fox: '🦊'
 };
 
 let gameState = null;
@@ -379,7 +381,7 @@ function renderGameState() {
   
   if (gameState.lastDice) {
     ctx.fillText(
-      `🎲 Last Roll → Red: ${gameState.lastDice.red}, Blue: ${gameState.lastDice.blue}`,
+      `🎲 Last Roll → ${animalEmojis[gameState.lastDice.red]} ${gameState.lastDice.red} & ${gameState.lastDice.blue} ${animalEmojis[gameState.lastDice.blue]}`,
       20,
       statusY + 30
     );
