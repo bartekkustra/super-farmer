@@ -1,4 +1,4 @@
-# [super-farmer.games.barts.work/](http://super-farmer.games.barts.work/)
+# [super-farmer.games.barts.work](http://super-farmer.games.barts.work/)
 
 # 🌾 Super Farmer 🐑
 
