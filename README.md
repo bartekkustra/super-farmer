@@ -1,3 +1,5 @@
+# [super-farmer.games.barts.work/](http://super-farmer.games.barts.work/)
+
 # 🌾 Super Farmer 🐑
 
 A multiplayer online implementation of the classic board game Super Farmer, where players compete to build the perfect farm through animal trading and dice rolling.
