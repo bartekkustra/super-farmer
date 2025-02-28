@@ -3,7 +3,8 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
-const SHOULD_LOG = false
+const SHOULD_LOG = process.env.SHOULD_LOG === "true"
+const PORT = process.env.PORT || 80
 
 // Serve static files from "public"
 app.use(express.static('public'));
@@ -609,6 +610,6 @@ function gameStateForClients(game) {
   };
 }
 
-http.listen(3000, () => {
-  SHOULD_LOG && console.log('Server listening on port 3000');
+http.listen(PORT, () => {
+  SHOULD_LOG && console.log(`Server listening on port ${PORT}`);
 });
